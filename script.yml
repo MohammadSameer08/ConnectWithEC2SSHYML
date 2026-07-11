@@ -1,0 +1,26 @@
+# SSH_EC2_IP, SSH_EC2_USER, SSH_PRIVATE_KEY and SSH_KNOWN_HOSTS (file) should be set as environment variables in GitLab CI/CD settings 
+ssh_deploy:
+  stage: deploy
+  image: alpine
+  before_script:
+     # Check if port 22 is open on the server
+    - nc -zv $SSH_EC2_IP 22
+    # Grant read-only permission to the private key
+    - chmod 400 $SSH_PRIVATE_KEY
+    # Install the OpenSSH client
+    - apk add openssh-client
+    # Start the SSH agent
+    - eval $(ssh-agent)
+    # Add the SSH key to the agent
+    - ssh-add $SSH_PRIVATE_KEY
+    # Create the SSH directory and assign the right permissions
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    # Create the known_hosts files and assign the right permissions
+    - cp $SSH_KNOWN_HOSTS ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+  script:
+    # Open SSH connection + run commands
+    - ssh $SSH_EC2_USER@$SSH_EC2_IP "whoami; touch /tmp/foo.txt; ls -l /tmp"
+    # Copy all the directories and files from the build directory (but not build itself) to the remote destination
+    - scp -r build/* $SSH_EC2_USER@$SSH_EC2_IP:/usr/share/nginx/html/
